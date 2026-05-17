@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CROWD INSTABILITY DETECTION SYSTEM</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg:         #080c10;
+    --panel:      #0d1117;
+    --border:     #1c2a3a;
+    --accent:     #00e5ff;
+    --green:      #00ff88;
+    --amber:      #ffb300;
+    --red:        #ff1744;
+    --text:       #b0bec5;
+    --text-dim:   #546e7a;
+    --mono:       'Share Tech Mono', monospace;
+    --sans:       'Rajdhani', sans-serif;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.015) 2px, rgba(0,229,255,0.015) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(90deg, #0a1628 0%, #0d1117 50%, #0a1628 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0; z-index: 100;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo-mark { width: 32px; height: 32px; border: 2px solid var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; animation: pulse-border 3s infinite; }
+  .logo-mark::before { content: ''; width: 14px; height: 14px; background: var(--accent); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); opacity: 0.8; }
+  @keyframes pulse-border { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,255,0.4); } 50% { box-shadow: 0 0 0 6px rgba(0,229,255,0); } }
+  .sys-title { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 3px; text-transform: uppercase; }
+  .sys-subtitle { font-size: 11px; color: var(--text-dim); letter-spacing: 2px; margin-top: 1px; }
+
+  .header-right { display: flex; align-items: center; gap: 24px; font-family: var(--mono); font-size: 11px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 2px; border: 1px solid var(--green); color: var(--green); letter-spacing: 1px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  #clock { color: var(--text-dim); letter-spacing: 2px; }
+
+  /* ── Critical Alert Banner ── */
+  #critical-banner {
+    display: none;
+    background: rgba(255, 23, 68, 0.15);
+    border-bottom: 2px solid var(--red);
+    padding: 16px 24px;
+    box-shadow: 0 0 20px rgba(255, 23, 68, 0.4);
+    animation: slide-down 0.3s ease-out, banner-pulse 1.5s infinite;
+    z-index: 90;
+    flex-shrink: 0;
+  }
+  @keyframes slide-down { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+  @keyframes banner-pulse { 0%, 100% { background: rgba(255, 23, 68, 0.15); } 50% { background: rgba(255, 23, 68, 0.25); } }
+  
+  .banner-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .banner-title { font-family: var(--mono); font-size: 18px; color: var(--red); font-weight: bold; letter-spacing: 2px; display: flex; align-items: center; gap: 12px; }
+  .banner-icon { font-size: 24px; animation: blink 0.5s infinite; }
+  .banner-details { font-family: var(--mono); font-size: 14px; color: #fff; }
+  .banner-actions { display: flex; gap: 24px; font-family: var(--mono); font-size: 12px; color: var(--amber); }
+  .banner-actions span::before { content: '→ '; }
+  .banner-close { background: none; border: 1px solid var(--red); color: var(--red); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 12px; }
+  .banner-close:hover { background: rgba(255, 23, 68, 0.2); }
+
+  /* Full page flash */
+  @keyframes screen-flash { 0% { box-shadow: inset 0 0 0 0 rgba(255,23,68,0); } 10% { box-shadow: inset 0 0 100px 10px rgba(255,23,68,0.5); } 100% { box-shadow: inset 0 0 0 0 rgba(255,23,68,0); } }
+  body.flash-red { animation: screen-flash 0.8s ease-out; }
+
+  /* ── Main Layout ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 280px 1fr 260px;
+    gap: 1px; background: var(--border);
+  }
+
+  .panel { background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-header { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .panel-title { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+  .panel-badge { font-family: var(--mono); font-size: 9px; padding: 2px 6px; border-radius: 2px; background: rgba(0,229,255,0.1); border: 1px solid rgba(0,229,255,0.3); color: var(--accent); }
+  .panel-body { flex: 1; overflow-y: auto; padding: 12px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+  /* ── Left panel ── */
+  .upload-zone { border: 1px dashed var(--border); border-radius: 4px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; position: relative; }
+  .upload-zone:hover { border-color: var(--accent); background: rgba(0,229,255,0.04); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; color: var(--text-dim); }
+  .upload-text { font-size: 12px; color: var(--text-dim); letter-spacing: 1px; font-family: var(--mono); }
+
+  .control-group { margin-bottom: 12px; }
+  .control-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .control-label span { color: var(--accent); font-size: 12px; }
+  input[type=range] { width: 100%; -webkit-appearance: none; height: 3px; background: var(--border); border-radius: 2px; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+
+  .action-buttons { display: flex; gap: 8px; margin-bottom: 16px; width: 100%; }
+  #btn-run { flex: 1; padding: 12px; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: var(--mono); font-size: 12px; letter-spacing: 3px; cursor: pointer; border-radius: 2px; transition: all 0.2s; position: relative; overflow: hidden; text-transform: uppercase; }
+  #btn-run:hover { background: rgba(0,229,255,0.08); }
+  #btn-run:disabled { border-color: var(--text-dim); color: var(--text-dim); cursor: not-allowed; }
+  #btn-run.running { border-color: var(--amber); color: var(--amber); animation: btn-pulse 1s infinite; }
+  @keyframes btn-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,179,0,0.3); } 50% { box-shadow: 0 0 0 6px rgba(255,179,0,0); } }
+  #btn-stop { display: none; flex: 1; padding: 12px; background: rgba(255,23,68,0.1); border: 1px solid var(--red); color: var(--red); font-family: var(--mono); font-size: 12px; letter-spacing: 2px; cursor: pointer; border-radius: 2px; transition: all 0.2s; }
+  #btn-stop:hover { background: rgba(255,23,68,0.2); }
+
+  .pipeline-steps { display: flex; flex-direction: column; gap: 4px; }
+  .pipe-step { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 2px; border: 1px solid var(--border); font-size: 11px; font-family: var(--sans); font-weight: 500; }
+  .pipe-step .step-num { font-family: var(--mono); font-size: 9px; color: var(--text-dim); width: 18px; flex-shrink: 0; }
+  .pipe-step .step-name { flex: 1; color: var(--text); }
+  .pipe-step .step-status { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; }
+  .pipe-step.active { border-color: var(--amber); background: rgba(255,179,0,0.04); }
+  .pipe-step.active .step-status, .pipe-step.active .step-num { color: var(--amber); }
+  .pipe-step.done { border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.03); }
+  .pipe-step.done .step-status, .pipe-step.done .step-num { color: var(--green); }
+
+  /* ── Center panel (Charts + Stream) ── */
+  #panel-main { display: flex; flex-direction: column; }
+  .charts-area { display: flex; flex-direction: column; gap: 12px; padding: 16px; flex-shrink: 0; }
+  .chart-box { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 4px; padding: 10px; position: relative; }
+  .chart-title { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; position: absolute; top: 10px; left: 10px; }
+  
+  .charts-row-1 { height: 220px; }
+  .charts-row-2 { display: flex; gap: 12px; height: 180px; }
+  .charts-row-2 > .chart-box { flex: 1; }
+
+  .stream-container { flex: 1; display: flex; flex-direction: column; border-top: 1px solid var(--border); overflow: hidden; }
+  .stream-header { padding: 8px 16px; border-bottom: 1px solid var(--border); background: rgba(13,17,23,0.9); display: flex; justify-content: space-between; align-items: center; }
+  .stream-title { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 2px; }
+  .stream-body { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 3px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+  .pred-row { display: grid; grid-template-columns: 80px 80px 1fr 60px 80px; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 2px; border-left: 2px solid transparent; font-size: 11px; }
+  .pred-row.normal { border-left-color: rgba(0,255,136,0.4); background: rgba(0,255,136,0.03); }
+  .pred-row.warning { border-left-color: var(--amber); background: rgba(255,179,0,0.06); }
+  .pred-row.abnormal { border-left-color: var(--red); background: rgba(255,23,68,0.06); }
+  .pred-row .seq-num, .pred-row .frame-num { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+  .pred-row .prob-bar { height: 4px; background: var(--border); border-radius: 2px; position: relative; }
+  .pred-row .prob-fill { position: absolute; left:0; top:0; height:100%; border-radius:2px; transition: width 0.3s; }
+  .pred-row.normal .prob-fill { background: var(--green); }
+  .pred-row.warning .prob-fill { background: var(--amber); }
+  .pred-row.abnormal .prob-fill { background: var(--red); }
+  .pred-row .prob-val { font-family: var(--mono); font-size: 10px; text-align: right; color: var(--text-dim); }
+  .pred-row .pred-label { font-family: var(--mono); font-size: 9px; padding: 2px 6px; border-radius: 2px; text-align: center; font-weight: bold; letter-spacing: 1px; }
+  .pred-row.normal .pred-label { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .pred-row.warning .pred-label { background: rgba(255,179,0,0.15); color: var(--amber); border: 1px solid rgba(255,179,0,0.4); }
+  .pred-row.abnormal .pred-label { background: rgba(255,23,68,0.15); color: var(--red); border: 1px solid rgba(255,23,68,0.4); }
+
+  /* ── Right panel ── */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); margin-bottom: 12px; }
+  .stat-card { background: var(--panel); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .stat-card.full { grid-column: 1 / 3; }
+  .stat-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+  .stat-val { font-family: var(--mono); font-size: 18px; font-weight: bold; color: var(--text); }
+  .stat-val.green { color: var(--green); }
+  .stat-val.amber { color: var(--amber); }
+  .stat-val.red { color: var(--red); }
+
+  .alert-history-title { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 2px; margin: 12px 0 8px 0; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .alert-list { display: flex; flex-direction: column; gap: 8px; }
+  .alert-card { padding: 12px; border-radius: 4px; border: 1px solid rgba(255,23,68,0.5); background: rgba(255,23,68,0.05); box-shadow: inset 0 0 10px rgba(255,23,68,0.1); }
+  .alert-card .alert-header { font-family: var(--mono); font-size: 12px; color: var(--red); font-weight: bold; letter-spacing: 1px; margin-bottom: 6px; }
+  .alert-card .alert-metrics { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
+  .alert-card .alert-action { font-family: var(--mono); font-size: 10px; color: var(--amber); margin-top: 2px; }
+  .alert-card .alert-action::before { content: '→ '; }
+
+  /* ── Bottom Log ── */
+  #log-strip { height: 30px; background: #06090d; border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; font-family: var(--mono); font-size: 10px; flex-shrink: 0; overflow: hidden; color: var(--text-dim); }
+  .log-line { display: flex; gap: 12px; white-space: nowrap; animation: fade-in 0.3s; }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .log-time { color: var(--text-dim); }
+  .log-msg { color: var(--text); }
+  .log-msg.error { color: var(--red); }
+  .log-msg.success { color: var(--green); }
+  .log-msg.warning { color: var(--amber); }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo-mark"></div>
+    <div>
+      <div class="sys-title">Crowd Instability Detection</div>
+      <div class="sys-subtitle">Early-Stage Detection · CNN + LSTM · Optical Flow</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill"><div class="status-dot"></div> SYSTEM ONLINE</div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div id="critical-banner">
+  <div class="banner-header">
+    <div class="banner-title"><span class="banner-icon">⚠</span> CRITICAL — CROWD INSTABILITY DETECTED</div>
+    <button class="banner-close" onclick="document.getElementById('critical-banner').style.display='none'">DISMISS</button>
+  </div>
+  <div class="banner-details" id="banner-details">FRAME: ---- &nbsp;|&nbsp; ENTROPY: --- &nbsp;|&nbsp; VARIANCE: ---</div>
+  <div class="banner-actions" id="banner-actions"></div>
+</div>
+
+<main>
+  <!-- Left Panel -->
+  <div class="panel" id="panel-input">
+    <div class="panel-header">
+      <div class="panel-title">INPUT MODULE</div>
+      <div class="panel-badge">MOD-01</div>
+    </div>
+    <div class="panel-body">
+      <div class="upload-zone" id="drop-zone">
+        <input type="file" id="video-input" accept=".avi,.mp4,.mov">
+        <div class="upload-icon">📹</div>
+        <div class="upload-text">DROP VIDEO FILE</div>
+        <div class="upload-sub" id="file-name">.avi · .mp4 · .mov</div>
+      </div>
+
+      <div style="text-align:center; font-family:var(--mono); font-size:9px; color:var(--text-dim); margin:-4px 0 12px 0; letter-spacing:2px;">— OR —</div>
+      
+      <div class="live-cam-zone" style="margin-bottom:12px; border:1px dashed var(--border); border-radius:4px; padding:12px;">
+         <div class="control-label" style="margin-bottom:8px;">MOBILE LIVE CAMERA (URL)</div>
+         <input type="text" id="camera-url" value="http://192.168.1.5:8080/video" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--accent); font-family:var(--mono); font-size:10px; padding:6px; border-radius:2px; margin-bottom:8px;">
+         <button id="btn-live" style="width:100%; padding:8px; background:rgba(0,255,136,0.05); border:1px solid rgba(0,255,136,0.3); color:var(--green); font-family:var(--mono); font-size:10px; cursor:pointer; letter-spacing:1px; border-radius:2px; transition:all 0.2s;">📡 CONNECT LIVE</button>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">ENTROPY THRESHOLD <span id="ent-display">0.50</span></div>
+        <input type="range" id="ent-thresh" min="0.1" max="0.9" step="0.05" value="0.5">
+      </div>
+      <div class="control-group">
+        <div class="control-label">DIRECTIONAL VAR THRESHOLD <span id="var-display">0.35</span></div>
+        <input type="range" id="var-thresh" min="0.1" max="0.9" step="0.05" value="0.35">
+      </div>
+
+      <div class="action-buttons">
+        <button id="btn-run" disabled>▶ &nbsp; RUN PIPELINE</button>
+        <button id="btn-stop">⬛ STOP</button>
+      </div>
+
+      <div class="panel-title" style="margin: 16px 0 8px 0;">PIPELINE FLOW</div>
+      <div class="pipeline-steps">
+        <div class="pipe-step" id="step-cap"><span class="step-num">01</span><span class="step-name">Video Capture</span><span class="step-status">IDLE</span></div>
+        <div class="pipe-step" id="step-flow"><span class="step-num">02</span><span class="step-name">Optical Flow</span><span class="step-status">IDLE</span></div>
+        <div class="pipe-step" id="step-inf"><span class="step-num">03</span><span class="step-name">CNN + LSTM</span><span class="step-status">IDLE</span></div>
+        <div class="pipe-step" id="step-dec"><span class="step-num">04</span><span class="step-name">Decision Module</span><span class="step-status">IDLE</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center Panel -->
+  <div class="panel" id="panel-main">
+    <div class="charts-area">
+      <div class="chart-box charts-row-1">
+        <div class="chart-title">MOTION ENTROPY OVER TIME</div>
+        <canvas id="chart-entropy"></canvas>
+      </div>
+      <div class="charts-row-2">
+        <div class="chart-box">
+          <div class="chart-title">DIRECTIONAL VARIANCE</div>
+          <canvas id="chart-variance"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">STATUS DISTRIBUTION</div>
+          <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; padding-top:15px;">
+            <canvas id="chart-donut"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stream-container">
+      <div class="stream-header">
+        <div class="stream-title">PREDICTION STREAM</div>
+      </div>
+      <div class="stream-body" id="prediction-stream">
+         <div style="text-align:center; padding:20px; color:var(--text-dim); font-family:var(--mono); font-size:11px; letter-spacing:1px;">AWAITING INPUT...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="panel" id="panel-right">
+    <div class="panel-header">
+      <div class="panel-title">SYSTEM METRICS</div>
+    </div>
+    <div class="panel-body">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">SEQUENCES</div>
+          <div class="stat-val" id="stat-seq">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">DET RATE</div>
+          <div class="stat-val amber" id="stat-rate">0.0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">NORMAL</div>
+          <div class="stat-val green" id="stat-norm">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">WARNING</div>
+          <div class="stat-val amber" id="stat-warn">0</div>
+        </div>
+        <div class="stat-card full">
+          <div class="stat-label">ABNORMAL ALERTS</div>
+          <div class="stat-val red" id="stat-abn">0</div>
+        </div>
+      </div>
+
+      <div class="alert-history-title">ALERT HISTORY</div>
+      <div class="alert-list" id="alert-list">
+        <div style="font-family:var(--mono); font-size:10px; color:var(--text-dim); text-align:center; padding:20px;">NO ALERTS YET</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="log-strip">
+  <div class="log-line" id="latest-log"><span class="log-time">--:--:--</span> <span class="log-msg">System initialised.</span></div>
+</div>
+
+<script>
+  // Clock
+  setInterval(() => { document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8); }, 1000);
+
+  // UI Setup
+  const entThresh = document.getElementById('ent-thresh');
+  const varThresh = document.getElementById('var-thresh');
+  entThresh.oninput = () => document.getElementById('ent-display').textContent = parseFloat(entThresh.value).toFixed(2);
+  varThresh.oninput = () => document.getElementById('var-display').textContent = parseFloat(varThresh.value).toFixed(2);
+
+  const videoInput = document.getElementById('video-input');
+  videoInput.onchange = () => {
+    if(videoInput.files.length) {
+      document.getElementById('file-name').textContent = videoInput.files[0].name;
+      document.getElementById('file-name').style.color = 'var(--accent)';
+      document.getElementById('btn-run').disabled = false;
+    }
+  };
+
+  // Charts
+  Chart.defaults.color = '#546e7a';
+  Chart.defaults.font.family = "'Share Tech Mono', monospace";
+  
+  const ctxEnt = document.getElementById('chart-entropy').getContext('2d');
+  const chartEnt = new Chart(ctxEnt, {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label: 'Entropy', data: [], borderColor: '#00e5ff', borderWidth: 2, tension: 0.3, pointRadius: 0 },
+      { label: 'Threshold', data: [], borderColor: '#ff1744', borderWidth: 1, borderDash: [5,5], pointRadius: 0 }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { min: 0, max: 1, grid: { color: 'rgba(28,42,58,0.5)' } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } }, layout: { padding: { top: 20 } } }
+  });
+
+  const ctxVar = document.getElementById('chart-variance').getContext('2d');
+  const chartVar = new Chart(ctxVar, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Variance', data: [], borderColor: '#ffb300', borderWidth: 2, tension: 0.3, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { min: 0, max: 1, grid: { color: 'rgba(28,42,58,0.5)' } }, x: { display: false } }, plugins: { legend: { display: false } }, layout: { padding: { top: 20 } } }
+  });
+
+  const ctxDonut = document.getElementById('chart-donut').getContext('2d');
+  const chartDonut = new Chart(ctxDonut, {
+    type: 'doughnut',
+    data: { labels: ['Normal', 'Warning', 'Abnormal'], datasets: [{ data: [0,0,0], backgroundColor: ['#00ff88', '#ffb300', '#ff1744'], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
+  });
+
+  // State
+  let stats = { seq: 0, norm: 0, warn: 0, abn: 0 };
+  const MAX_CHART_POINTS = 50;
+
+  function setLog(msg, type='info') {
+    const time = new Date().toTimeString().slice(0,8);
+    document.getElementById('latest-log').innerHTML = `<span class="log-time">${time}</span> <span class="log-msg ${type}">${msg}</span>`;
+  }
+
+  function setStep(id, status) {
+    const el = document.getElementById(id);
+    if(el) {
+      el.className = 'pipe-step ' + status;
+      el.querySelector('.step-status').textContent = status.toUpperCase();
+    }
+  }
+
+  function triggerAlert(frame, ent, varVal) {
+    // Banner
+    const banner = document.getElementById('critical-banner');
+    banner.style.display = 'block';
+    document.getElementById('banner-details').innerHTML = `FRAME: ${frame} &nbsp;|&nbsp; ENTROPY: ${ent.toFixed(3)} &nbsp;|&nbsp; VARIANCE: ${varVal.toFixed(3)}`;
+    document.getElementById('banner-actions').innerHTML = '';
+    
+    // Flash
+    document.body.classList.add('flash-red');
+    setTimeout(() => document.body.classList.remove('flash-red'), 800);
+
+    // History Card
+    const list = document.getElementById('alert-list');
+    if(list.innerText.includes('NO ALERTS')) list.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'alert-card';
+    card.innerHTML = `
+      <div class="alert-header">⚠ FRAME ${frame} — ABNORMAL</div>
+      <div class="alert-metrics">Entropy: ${ent.toFixed(3)} | Variance: ${varVal.toFixed(3)}</div>
+    `;
+    list.prepend(card);
+    setLog(`CRITICAL ALERT at Frame ${frame}`, 'error');
+  }
+
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+  dropZone.addEventListener('dragleave', e => { dropZone.style.borderColor = 'var(--border)'; });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--border)';
+    if(e.dataTransfer.files.length > 0) {
+      videoInput.files = e.dataTransfer.files;
+      videoInput.dispatchEvent(new Event('change'));
+    }
+  });
+
+  let evtSource = null;
+  function setPipelineActive(isActive, isLive=false) {
+    const btnRun = document.getElementById('btn-run');
+    const btnStop = document.getElementById('btn-stop');
+    const btnLive = document.getElementById('btn-live');
+    
+    if(isActive) {
+      if(isLive) {
+        btnRun.style.display = 'none';
+      } else {
+        btnRun.disabled = true;
+        btnRun.classList.add('running');
+        btnRun.textContent = 'PROCESSING...';
+      }
+      btnLive.disabled = true;
+      btnLive.style.opacity = '0.5';
+      btnLive.textContent = '📡 LIVE...';
+      btnStop.style.display = 'block';
+    } else {
+      btnRun.style.display = 'block';
+      btnRun.disabled = !videoInput.files.length;
+      btnRun.classList.remove('running');
+      btnRun.textContent = '▶ RUN PIPELINE';
+      btnLive.disabled = false;
+      btnLive.style.opacity = '1';
+      btnLive.textContent = '📡 CONNECT LIVE';
+      btnStop.style.display = 'none';
+    }
+  }
+
+  function startPipeline(isLive) {
+    if(!isLive && !videoInput.files.length) return;
+    
+    setPipelineActive(true, isLive);
+    document.getElementById('critical-banner').style.display = 'none';
+    document.getElementById('prediction-stream').innerHTML = '';
+    document.getElementById('alert-list').innerHTML = '<div style="text-align:center; color:var(--text-dim); padding:20px;">NO ALERTS YET</div>';
+    ['step-cap','step-flow','step-inf','step-dec'].forEach(id => setStep(id, ''));
+    
+    stats = { seq: 0, norm: 0, warn: 0, abn: 0 };
+    chartEnt.data.labels = []; chartEnt.data.datasets[0].data = []; chartEnt.data.datasets[1].data = [];
+    chartVar.data.labels = []; chartVar.data.datasets[0].data = [];
+    chartDonut.data.datasets[0].data = [0,0,0];
+    chartEnt.update(); chartVar.update(); chartDonut.update();
+    
+    setStep('step-cap', 'active');
+    setLog('Pipeline started...', 'info');
+
+    const fd = new FormData();
+    fd.append('ent_thresh', entThresh.value);
+    fd.append('var_thresh', varThresh.value);
+
+    let endpoint = '/upload';
+    if(isLive) {
+      fd.append('camera_url', document.getElementById('camera-url').value);
+      endpoint = '/live';
+    } else {
+      fd.append('video', videoInput.files[0]);
+    }
+
+    fetch(endpoint, { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(d => {
+        if(d.error) { 
+          setLog(d.error, 'error'); 
+          setPipelineActive(false);
+          return; 
+        }
+        if(evtSource) evtSource.close();
+        evtSource = new EventSource('/stream');
+        evtSource.onmessage = e => {
+          const data = JSON.parse(e.data);
+          
+          if(data.type === 'stage') {
+             if(data.data.stage === 'extracting') setStep('step-cap', 'active');
+             if(data.data.stage === 'flow') { setStep('step-cap', 'done'); setStep('step-flow', 'active'); }
+             if(data.data.stage === 'inference') { setStep('step-flow', 'done'); setStep('step-inf', 'active'); setStep('step-dec', 'active'); }
+          }
+          else if(data.type === 'prediction') {
+            const {seq, frame, ent, status} = data.data;
+            const varVal = data.data.var;
+            
+            stats.seq++;
+            if(status === 'normal') stats.norm++;
+            else if(status === 'warning') stats.warn++;
+            else stats.abn++;
+            
+            document.getElementById('stat-seq').textContent = stats.seq;
+            document.getElementById('stat-norm').textContent = stats.norm;
+            document.getElementById('stat-warn').textContent = stats.warn;
+            document.getElementById('stat-abn').textContent = stats.abn;
+            document.getElementById('stat-rate').textContent = ((stats.abn / Math.max(1, stats.seq))*100).toFixed(1) + '%';
+            
+            chartEnt.data.labels.push(seq);
+            chartEnt.data.datasets[0].data.push(ent);
+            chartEnt.data.datasets[1].data.push(parseFloat(entThresh.value));
+            if(chartEnt.data.labels.length > MAX_CHART_POINTS) {
+              chartEnt.data.labels.shift();
+              chartEnt.data.datasets[0].data.shift();
+              chartEnt.data.datasets[1].data.shift();
+            }
+            chartEnt.update();
+            
+            chartVar.data.labels.push(seq);
+            chartVar.data.datasets[0].data.push(varVal);
+            if(chartVar.data.labels.length > MAX_CHART_POINTS) { chartVar.data.labels.shift(); chartVar.data.datasets[0].data.shift(); }
+            chartVar.update();
+
+            chartDonut.data.datasets[0].data = [stats.norm, stats.warn, stats.abn];
+            chartDonut.update();
+
+            const stream = document.getElementById('prediction-stream');
+            if(stream.innerText.includes('AWAITING')) stream.innerHTML = '';
+            const row = document.createElement('div');
+            row.className = `pred-row ${status}`;
+            const entPct = Math.min(100, Math.round(ent * 100));
+            row.innerHTML = `
+              <div class="seq-num">SEQ ${String(seq).padStart(4,'0')}</div>
+              <div class="frame-num">F-${String(frame).padStart(4,'0')}</div>
+              <div class="prob-bar"><div class="prob-fill" style="width:${entPct}%"></div></div>
+              <div class="prob-val">${ent.toFixed(3)}</div>
+              <div class="pred-label">${status.toUpperCase()}</div>
+            `;
+            stream.appendChild(row);
+            stream.scrollTop = stream.scrollHeight;
+            if(stream.children.length > 50) stream.removeChild(stream.firstChild);
+          }
+          else if(data.type === 'action') {
+            triggerAlert(data.data.frame, data.data.ent, data.data.ent*0.8);
+          }
+          else if(data.type === 'complete') {
+            setStep('step-inf', 'done'); setStep('step-dec', 'done');
+            setPipelineActive(false);
+            setLog('Pipeline complete/stopped.', 'success');
+            evtSource.close();
+          }
+          else if(data.type === 'error') {
+            setLog('Error: ' + data.data.message, 'error');
+            setPipelineActive(false);
+            evtSource.close();
+          }
+        };
+      })
+      .catch(err => {
+        console.error(err);
+        setLog('Server Error: Did you restart python app.py?', 'error');
+        setPipelineActive(false);
+      });
+  }
+
+  document.getElementById('btn-run').onclick = () => startPipeline(false);
+  document.getElementById('btn-live').onclick = () => startPipeline(true);
+  
+  document.getElementById('btn-stop').onclick = () => {
+    fetch('/stop', {method: 'POST'}).then(r => {
+      setLog('Stop command sent...', 'warning');
+      setPipelineActive(false);
+      if(evtSource) evtSource.close();
+      setStep('step-inf', ''); setStep('step-dec', '');
+      setStep('step-cap', ''); setStep('step-flow', '');
+    }).catch(e => {
+      setPipelineActive(false);
+      if(evtSource) evtSource.close();
+    });
+  };
+</script>
+</body>
+</html>

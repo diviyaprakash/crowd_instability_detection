@@ -1,0 +1,30 @@
+﻿Model from epoch 8, val_acc=0.9959
+
+--- Testing 10 NORMAL sequences (should predict NORMAL) ---
+python : Traceback (most recent call 
+last):
+At line:1 char:1
++ python quick_test.py 2>&1 | Out-File 
+-FilePath quick_test_output.txt  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifie 
+   d: (Traceback (most recent call last)  
+  ::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComma 
+   ndError
+ 
+  File "D:\Minor_Project\quick_test.py", 
+line 33, in <module>
+    print(f"  {ok} 
+{os.path.basename(f):30s}  
+prob={prob:.4f}  -> {pred}")
+  File "C:\Program 
+Files\Python311\Lib\encodings\cp1252.py", 
+line 19, in encode
+    return codecs.charmap_encode(input,sel
+f.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't 
+encode character '\u2713' in position 2: 
+character maps to <undefined>

@@ -1,0 +1,17 @@
+Videos with MOST abnormal sequences (best for demo):
+-------------------------------------------------------
+  10_074.avi         553 abnormal seqs  MISSING
+  12_142.avi         526 abnormal seqs  MISSING
+  08_077.avi         389 abnormal seqs  MISSING
+  10_042.avi         364 abnormal seqs  MISSING
+  04_012.avi         344 abnormal seqs  EXISTS
+  01_136.avi         328 abnormal seqs  MISSING
+  05_023.avi         324 abnormal seqs  EXISTS
+  12_152.avi         311 abnormal seqs  MISSING
+  10_037.avi         309 abnormal seqs  MISSING
+  01_054.avi         308 abnormal seqs  EXISTS
+  04_001.avi         308 abnormal seqs  EXISTS
+  01_015.avi         303 abnormal seqs  EXISTS
+  04_011.avi         297 abnormal seqs  EXISTS
+  12_154.avi         295 abnormal seqs  MISSING
+  02_128.avi         282 abnormal seqs  MISSING
