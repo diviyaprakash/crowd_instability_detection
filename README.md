@@ -14,6 +14,16 @@ to a control room before a stampede occurs.
 
 ---
 
+## Key Features
+
+- Farneback Dense Optical Flow
+- CNN-LSTM Temporal Learning
+- Motion Entropy Analysis
+- Directional Variance Analysis
+- Early Crowd Instability Detection
+- Real-time Alert Pipeline
+- Flask-Based Monitoring Dashboard
+
 ## System Architecture
 
 ```
