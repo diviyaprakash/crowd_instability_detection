@@ -187,11 +187,18 @@ Output: Normal (0) / Abnormal (1)
 
 ---
 
-## Dataset Support
+## Dataset
 
-- UMN crowd dataset
-- ShanghaiTech
-- Any surveillance video (.avi / .mp4)
+This project was trained and evaluated using the ShanghaiTech Crowd Dataset.
+
+The system analyses surveillance crowd videos to detect abnormal crowd motion
+and early-stage instability using optical flow and deep learning.
+
+Supported input formats:
+- .avi
+- .mp4
+
+Dataset files are not included in this repository due to GitHub storage limitations.
 
 Label structure:
 
